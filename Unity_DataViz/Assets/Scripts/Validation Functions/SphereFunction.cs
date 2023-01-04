@@ -1,11 +1,11 @@
 ﻿using UnityEngine;
 
-public class SphereFunction : IValidatable
+public class SphereFunction : Validatable
 {
-    public Vector3 CenterPoint = new Vector3(2, 2, 2);
-    
-    public float Validate(Vector3 samplePoint)
+    public Vector3 centerPoint = Vector3.zero;
+
+    public override float Validate(Vector3 samplePoint)
     {
-        return Vector3.Distance(CenterPoint, samplePoint);
+        return Vector3.Distance(centerPoint, samplePoint);
     }
 }

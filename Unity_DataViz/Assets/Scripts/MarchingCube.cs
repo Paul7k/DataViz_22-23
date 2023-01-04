@@ -1,7 +1,3 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using TMPro;
 using UnityEngine;
 
 public class MarchingCube : MonoBehaviour
@@ -12,14 +8,13 @@ public class MarchingCube : MonoBehaviour
     public Vector3Int CubeSize => stepCount;
 
     public float[] samplePoints;
-    private SphereFunction sphereFunction;
+    public Validatable validationFunction;
 
     public float isoValue = 2f;
     public Cube[] sampleCubes;
 
     private void Awake()
     {
-        sphereFunction = new SphereFunction();
         DataStruc.SetMarchingCube(this);
     }
 
@@ -30,7 +25,7 @@ public class MarchingCube : MonoBehaviour
         for (var i = 0; i < length; i++)
         {
             var pos = DataStruc.GetLocalPosition(i);
-            var value = sphereFunction.Validate(pos);
+            var value = validationFunction.Validate(pos);
             samplePoints[i] = value;
         }
     }

@@ -4,21 +4,21 @@ using System.Linq;
 using TMPro;
 using UnityEngine;
 
-[RequireComponent(typeof(MarchingCube))]
 public class MarchingCubeVisualizer : MonoBehaviour
 {
-    private MarchingCube source;
+    public MarchingCube source;
 
     private void Awake()
     {
-        source = GetComponent<MarchingCube>();
+        if(TryGetComponent(out MarchingCube comp))
+            source = comp;
     }
     
     public GameObject prefab;
     public bool delayed = true;
     public float delay = 0.1f;
 
-    #region Points
+    #region Points Parameters
 
     public GameObject[] points;
     public Transform pointsParentObj;
@@ -32,8 +32,7 @@ public class MarchingCubeVisualizer : MonoBehaviour
     public float pointsOtherPlaneOpacity = 0.01f;
     
     #endregion
-    
-    #region Cubes
+    #region Cubes Parameters
 
     public GameObject[] cubes;
     public Transform cubesParentObj;
@@ -47,25 +46,25 @@ public class MarchingCubeVisualizer : MonoBehaviour
     public float cubesOtherPlaneOpacity = 0.01f;
     
     #endregion
-
-
+    
+    #region Points Functions
 
     public void StartVisualizeSampledPoints()
     {
-        var length = source.samplePoints.Length;
-        var values = source.samplePoints;
-
+        var values = source.getSamplePoints;
+        var length = values.Length;
+        
         if (delayed)
             StartCoroutine(CO_VisualizeSampledPoints(length, values, pointsParentObj, Vector3.zero, pointsGradient, pointsGradientScaling));
         else
-            points = Visualize(length, values, pointsParentObj, Vector3.zero, pointsGradient, pointsGradientScaling);
+            points = Visualize(length, source.PointSize, values, pointsParentObj, Vector3.zero, pointsGradient, pointsGradientScaling);
     }
     private IEnumerator CO_VisualizeSampledPoints(int length, float[] values, Transform parentObj, Vector3 posOffset, Gradient gradient, float gradientScaling)
     {
         var objs = new GameObject[length];
         for (var i = 0; i < length; i++)
         {
-            objs[i] = CreateVizObj(i, values[i], parentObj, posOffset, gradient, gradientScaling);
+            objs[i] = CreateVizObj(i, source.PointSize, values[i], parentObj, posOffset, gradient, gradientScaling);
             yield return new WaitForSeconds(delay);
         }
 
@@ -79,25 +78,28 @@ public class MarchingCubeVisualizer : MonoBehaviour
 
     public void ShowPointPlane()
     {
-        HighlightPlanes(pointsPlane, pointsPlaneIndices, pointsOtherPlaneOpacity, points);
+        HighlightPlanes(pointsPlane, pointsPlaneIndices, pointsOtherPlaneOpacity, points, source.PointSize);
     }
-    
+
+    #endregion
+    #region Cubes Functions
+
     public void StartVisualizeSampledCubes()
     {
-        var length = source.sampleCubes.Length;
-        var values = Cube.GetConfigsFloat(source.sampleCubes);
+        var values = Cube.GetConfigsFloat(source.getSampleCubes);
+        var length = values.Length;
 
         if (delayed)
             StartCoroutine(CO_VisualizeSampledCubes(length, values, cubesParentObj, source.stepSize * 0.5f, cubesGradient, cubesGradientScaling));
         else
-            cubes = Visualize(length, values, cubesParentObj, source.stepSize * 0.5f, cubesGradient, cubesGradientScaling);
+            cubes = Visualize(length, source.CubeSize, values, cubesParentObj, source.stepSize * 0.5f, cubesGradient, cubesGradientScaling);
     }
     private IEnumerator CO_VisualizeSampledCubes(int length, float[] values, Transform parentObj, Vector3 posOffset, Gradient gradient, float gradientScaling)
     {
         var objs = new GameObject[length];
         for (var i = 0; i < length; i++)
         {
-            objs[i] = CreateVizObj(i, values[i], parentObj, posOffset, gradient, gradientScaling);
+            objs[i] = CreateVizObj(i, source.CubeSize,values[i], parentObj, posOffset, gradient, gradientScaling);
             yield return new WaitForSeconds(delay);
         }
 
@@ -109,24 +111,24 @@ public class MarchingCubeVisualizer : MonoBehaviour
     }
     public void ShowCubePlane()
     {
-        HighlightPlanes(cubesPlane, cubesPlaneIndices, cubesOtherPlaneOpacity, cubes);
+        HighlightPlanes(cubesPlane, cubesPlaneIndices, cubesOtherPlaneOpacity, cubes, source.CubeSize);
     }
+
+    #endregion
     
-    
-    private GameObject[] Visualize(int length, float[] values, Transform parentObj, Vector3 posOffset, Gradient gradient, float gradientScaling)
+    private GameObject[] Visualize(int length, Vector3Int size, float[] values, Transform parentObj, Vector3 posOffset, Gradient gradient, float gradientScaling)
     {
         var objs = new GameObject[length];
         for (var i = 0; i < length; i++)
         {
-            objs[i] = CreateVizObj(i, values[i], parentObj, posOffset, gradient, gradientScaling);
+            objs[i] = CreateVizObj(i, size, values[i], parentObj, posOffset, gradient, gradientScaling);
         }
 
         return objs;
     }
-
-    private GameObject CreateVizObj(int index, float value, Transform parentObj, Vector3 posOffset, Gradient gradient, float gradientScaling)
+    private GameObject CreateVizObj(int index, Vector3Int size, float value, Transform parentObj, Vector3 posOffset, Gradient gradient, float gradientScaling)
     {
-        var pos = DataStruc.GetLocalPosition(index);
+        var pos = DataStruc.GetLocalPosition(index, size);
         var obj = Instantiate(prefab, parentObj);
         var trans = obj.GetComponent<RectTransform>();
         trans.position = new Vector3(pos.x + posOffset.x, pos.y + posOffset.y, pos.z + posOffset.z);
@@ -136,18 +138,26 @@ public class MarchingCubeVisualizer : MonoBehaviour
         
         return obj;
     }
+    private GameObject[] DeleteObjects(GameObject[] objs)
+    {
+        foreach (var obj in objs)
+        {
+            Destroy(obj);
+        }
 
-
+        return Array.Empty<GameObject>();
+    }
+    
     #region Plane
 
-    private void HighlightPlanes(Plane plane, int[] planeIndices, float opacity, GameObject[] objs)
+    private void HighlightPlanes(Plane plane, int[] planeIndices, float opacity, GameObject[] objs, Vector3Int size)
     {
         if (plane == Plane.None)
         {
             ResetPlaneHighlight(objs);
             return;
         }
-        var planeNormalizedVector = GetPlaneVector();
+        var planeNormalizedVector = GetPlaneVector(plane);
         var planeVectors = new Vector3Int[planeIndices.Length];
         for (var i = 0; i < planeVectors.Length; i++)
         {
@@ -155,7 +165,7 @@ public class MarchingCubeVisualizer : MonoBehaviour
         }
         for (var i = 0; i < objs.Length; i++)
         {
-            var pos = DataStruc.GetPosition(i);
+            var pos = DataStruc.GetPosition(i, size);
             var layerPos = Vector3Util.MultiplySeparately(pos, planeNormalizedVector);
             if (planeVectors.Contains(layerPos))
                 objs[i].GetComponent<TMP_Text>().alpha = 1;
@@ -176,9 +186,9 @@ public class MarchingCubeVisualizer : MonoBehaviour
     {
         X, Y, Z, None
     }
-    private Vector3Int GetPlaneVector()
+    private Vector3Int GetPlaneVector(Plane plane)
     {
-        var planeVector = pointsPlane switch
+        var planeVector = plane switch
         {
             Plane.X => Vector3Int.right,
             Plane.Y => Vector3Int.up,
@@ -189,17 +199,4 @@ public class MarchingCubeVisualizer : MonoBehaviour
         return planeVector;
     }
     #endregion
-    
-
-    private GameObject[] DeleteObjects(GameObject[] objs)
-    {
-        foreach (var obj in objs)
-        {
-            Destroy(obj);
-        }
-
-        return Array.Empty<GameObject>();
-    }
-    
-    
 }

@@ -7,6 +7,7 @@ public class MarchingCubeVisualizerEditor : Editor
     public override void OnInspectorGUI()
     {
         var source = (MarchingCubeVisualizer) target;
+        
         base.OnInspectorGUI();
         
         GUILayout.Label("Points");
